@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -7,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { FaLock } from 'react-icons/fa';
+import { Lock } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -70,7 +69,6 @@ const Login = () => {
     }
   };
 
-  // Demo credentials notice
   const loginAsAdmin = () => {
     setEmail('admin@example.com');
     setPassword('password');
@@ -87,7 +85,7 @@ const Login = () => {
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-purple-500 rounded-full">
-              <FaLock className="h-6 w-6 text-white" />
+              <Lock className="h-6 w-6 text-white" />
             </div>
           </div>
           <h1 className="text-3xl font-bold text-purple-900">Ticket Sentinel</h1>
