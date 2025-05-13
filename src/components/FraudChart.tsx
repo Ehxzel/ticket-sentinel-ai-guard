@@ -143,7 +143,9 @@ const FraudChart = () => {
                 <YAxis yAxisId="right" orientation="right" />
                 <Tooltip 
                   formatter={(value, name) => {
-                    if (name === 'fraudRate') return [`${value.toFixed(2)}%`, 'Fraud Rate'];
+                    if (name === 'fraudRate') {
+                      return [typeof value === 'number' ? `${value.toFixed(2)}%` : `${value}%`, 'Fraud Rate'];
+                    }
                     return [value, name === 'flaggedTransactions' ? 'Flagged Tickets' : 'Total Tickets'];
                   }}
                 />
@@ -194,7 +196,9 @@ const FraudChart = () => {
                 <YAxis yAxisId="right" orientation="right" />
                 <Tooltip 
                   formatter={(value, name) => {
-                    if (name === 'fraudRate') return [`${value.toFixed(2)}%`, 'Fraud Rate'];
+                    if (name === 'fraudRate') {
+                      return [typeof value === 'number' ? `${value.toFixed(2)}%` : `${value}%`, 'Fraud Rate'];
+                    }
                     return [value, name === 'flaggedTransactions' ? 'Flagged Tickets' : 'Total Tickets'];
                   }}
                 />
