@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Users, TrendingUp, Clock } from 'lucide-react';
-import { useEffect } from 'react';
+import LogTransactionForm from '@/components/LogTransactionForm';
+import AutoLogger from '@/components/AutoLogger';
 
 const DashboardPage = () => {
   const { user, isLoading, isAdmin } = useAuth();
@@ -22,6 +23,7 @@ const DashboardPage = () => {
     dateRange?: { from: Date; to: Date };
     query?: string;
   }>({});
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -30,17 +32,22 @@ const DashboardPage = () => {
     }
   }, [user, isLoading, navigate]);
 
+  // Handle filter changes
+  const handleFilterChange = (newFilters: typeof filters) => {
+    setFilters(newFilters);
+  };
+
+  // Refresh data when a new transaction is added
+  const handleTransactionAdded = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
+
   // Mock stats
   const stats = {
     totalTransactions: 1453,
     flaggedTransactions: 27,
     userActivity: 156,
     pendingReview: 15
-  };
-
-  // Handle filter changes
-  const handleFilterChange = (newFilters: typeof filters) => {
-    setFilters(newFilters);
   };
 
   if (isLoading) {
@@ -153,6 +160,12 @@ const DashboardPage = () => {
           </div>
         </div>
         
+        {/* Data Logging Section */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <LogTransactionForm onTransactionAdded={handleTransactionAdded} />
+          <AutoLogger onTransactionAdded={handleTransactionAdded} />
+        </div>
+        
         {/* Transactions */}
         <Tabs defaultValue="transactions" className="space-y-4">
           <TabsList>
@@ -163,17 +176,17 @@ const DashboardPage = () => {
           
           <TabsContent value="transactions" className="space-y-4">
             <FilterSection onFilterChange={handleFilterChange} />
-            <TransactionTable filter={filters} />
+            <TransactionTable filter={filters} key={`transactions-${refreshTrigger}`} />
           </TabsContent>
           
           <TabsContent value="flagged" className="space-y-4">
             <FilterSection onFilterChange={handleFilterChange} />
-            <TransactionTable filter={{ ...filters, status: 'flagged' }} />
+            <TransactionTable filter={{ ...filters, status: 'flagged' }} key={`flagged-${refreshTrigger}`} />
           </TabsContent>
           
           <TabsContent value="pending" className="space-y-4">
             <FilterSection onFilterChange={handleFilterChange} />
-            <TransactionTable filter={{ ...filters, status: 'pending' }} />
+            <TransactionTable filter={{ ...filters, status: 'pending' }} key={`pending-${refreshTrigger}`} />
           </TabsContent>
         </Tabs>
       </main>
