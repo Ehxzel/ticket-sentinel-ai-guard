@@ -1,9 +1,11 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronLeft, ChevronRight, Check, AlertTriangle, Clock } from 'lucide-react';
+import { fraudDetectionService } from '@/services/fraudDetectionService';
+import { useToast } from '@/components/ui/use-toast';
 
 // Define transaction type
 export type Transaction = {
@@ -16,82 +18,6 @@ export type Transaction = {
   fraudScore?: number;
 };
 
-// Mock transaction data
-const mockTransactions: Transaction[] = [
-  {
-    id: '1',
-    ticketId: 'T-4587',
-    timestamp: '2025-04-14T09:15:00Z',
-    station: 'Central Station',
-    amount: 5.50,
-    status: 'flagged',
-    fraudScore: 0.92
-  },
-  {
-    id: '2',
-    ticketId: 'T-4588',
-    timestamp: '2025-04-14T09:20:00Z',
-    station: 'North Station',
-    amount: 3.75,
-    status: 'cleared',
-    fraudScore: 0.15
-  },
-  {
-    id: '3',
-    ticketId: 'T-4589',
-    timestamp: '2025-04-14T09:30:00Z',
-    station: 'West Terminal',
-    amount: 4.50,
-    status: 'pending',
-    fraudScore: 0.45
-  },
-  {
-    id: '4',
-    ticketId: 'T-4590',
-    timestamp: '2025-04-14T09:45:00Z',
-    station: 'South Gate',
-    amount: 2.25,
-    status: 'cleared',
-    fraudScore: 0.08
-  },
-  {
-    id: '5',
-    ticketId: 'T-4591',
-    timestamp: '2025-04-14T10:00:00Z',
-    station: 'East Station',
-    amount: 6.00,
-    status: 'flagged',
-    fraudScore: 0.85
-  },
-  {
-    id: '6',
-    ticketId: 'T-4592',
-    timestamp: '2025-04-14T10:15:00Z',
-    station: 'Central Station',
-    amount: 5.50,
-    status: 'cleared',
-    fraudScore: 0.22
-  },
-  {
-    id: '7',
-    ticketId: 'T-4593',
-    timestamp: '2025-04-14T10:30:00Z',
-    station: 'North Station',
-    amount: 3.75,
-    status: 'pending',
-    fraudScore: 0.55
-  },
-  {
-    id: '8',
-    ticketId: 'T-4594',
-    timestamp: '2025-04-14T10:45:00Z',
-    station: 'Airport Terminal',
-    amount: 8.50,
-    status: 'cleared',
-    fraudScore: 0.12
-  },
-];
-
 interface TransactionTableProps {
   filter?: {
     station?: string;
@@ -101,9 +27,58 @@ interface TransactionTableProps {
 }
 
 const TransactionTable = ({ filter }: TransactionTableProps) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const { toast } = useToast();
+  
+  // Fetch transactions on component mount
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      setIsLoading(true);
+      try {
+        const data = await fraudDetectionService.getTransactions(100);
+        
+        // Convert API format to component format
+        const formattedTransactions = data.map(item => ({
+          id: item.ticketId, // Using ticketId as the id for now
+          ticketId: item.ticketId,
+          timestamp: item.timestamp,
+          station: item.station,
+          amount: item.amount,
+          status: item.status,
+          fraudScore: item.fraudScore
+        }));
+        
+        setTransactions(formattedTransactions);
+      } catch (error) {
+        console.error("Failed to fetch transactions:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load transactions. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [toast]);
+
+  // Handle resolving/updating transaction status
+  const handleUpdateStatus = async (ticketId: string, newStatus: 'pending' | 'flagged' | 'cleared') => {
+    const success = await fraudDetectionService.updateTransactionStatus(ticketId, newStatus);
+    if (success) {
+      // Update local state to reflect the change
+      setTransactions(prevTransactions => 
+        prevTransactions.map(tx => 
+          tx.ticketId === ticketId ? { ...tx, status: newStatus } : tx
+        )
+      );
+    }
+  };
   
   // Format date string to a more readable format
   const formatDate = (dateString: string) => {
@@ -146,12 +121,12 @@ const TransactionTable = ({ filter }: TransactionTableProps) => {
   };
 
   // Filter transactions based on props
-  const filteredTransactions = mockTransactions.filter(transaction => {
+  const filteredTransactions = transactions.filter(transaction => {
     if (!filter) return true;
     
     let matches = true;
     
-    if (filter.station && filter.station !== 'all') {
+    if (filter.station && filter.station !== 'All Stations') {
       matches = matches && transaction.station === filter.station;
     }
     
@@ -188,12 +163,13 @@ const TransactionTable = ({ filter }: TransactionTableProps) => {
               <TableHead>Amount</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Risk Score</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   <div className="flex justify-center items-center">
                     <Loader2 className="h-6 w-6 text-purple-500 animate-spin" />
                     <span className="ml-2">Loading transactions...</span>
@@ -202,7 +178,7 @@ const TransactionTable = ({ filter }: TransactionTableProps) => {
               </TableRow>
             ) : paginatedTransactions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-gray-500">
+                <TableCell colSpan={7} className="h-24 text-center text-gray-500">
                   No transactions found.
                 </TableCell>
               </TableRow>
@@ -240,6 +216,32 @@ const TransactionTable = ({ filter }: TransactionTableProps) => {
                         </span>
                       </div>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      {transaction.status !== 'cleared' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="border-green-200 hover:bg-green-50 hover:text-green-600 text-green-500 text-xs"
+                          onClick={() => handleUpdateStatus(transaction.ticketId, 'cleared')}
+                        >
+                          <Check className="h-3.5 w-3.5 mr-1.5" />
+                          Clear
+                        </Button>
+                      )}
+                      {transaction.status !== 'flagged' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="border-red-200 hover:bg-red-50 hover:text-red-600 text-red-500 text-xs"
+                          onClick={() => handleUpdateStatus(transaction.ticketId, 'flagged')}
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+                          Flag
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
