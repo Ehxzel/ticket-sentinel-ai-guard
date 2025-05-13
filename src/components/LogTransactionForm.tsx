@@ -64,6 +64,9 @@ const LogTransactionForm = ({ onTransactionAdded }: { onTransactionAdded?: () =>
           description: `Ticket ${ticketId} has been successfully logged.`,
         });
         resetForm();
+        
+        // Make sure we call the onTransactionAdded callback to trigger a refresh
+        console.log("Transaction added successfully, calling refresh callback");
         if (onTransactionAdded) {
           onTransactionAdded();
         }

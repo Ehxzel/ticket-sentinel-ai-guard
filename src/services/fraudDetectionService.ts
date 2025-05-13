@@ -25,6 +25,7 @@ export const fraudDetectionService = {
    */
   async analyzeTransaction(transaction: TicketTransaction): Promise<FraudDetectionResult | null> {
     try {
+      console.log("Sending transaction for analysis:", transaction);
       const { data, error } = await supabase.functions.invoke('detect-fraud', {
         body: transaction
       });
@@ -39,6 +40,7 @@ export const fraudDetectionService = {
         return null;
       }
 
+      console.log("Fraud detection result:", data);
       return data as FraudDetectionResult;
     } catch (error) {
       console.error("Exception in fraud detection:", error);
@@ -56,6 +58,7 @@ export const fraudDetectionService = {
    */
   async getTransactions(limit = 100): Promise<FraudDetectionResult[]> {
     try {
+      console.log(`Fetching up to ${limit} transactions`);
       const { data, error } = await supabase
         .from('ticket_transactions')
         .select('*')
@@ -72,6 +75,8 @@ export const fraudDetectionService = {
         return [];
       }
 
+      console.log(`Fetched ${data.length} transactions`);
+      
       // Convert database format to frontend format
       return data.map(item => ({
         ticketId: item.ticket_id,
