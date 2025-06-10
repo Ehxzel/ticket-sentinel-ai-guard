@@ -1,130 +1,107 @@
 
-import { serve } from "https://deno.land/std@0.170.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// CORS headers for browser requests
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// ML model placeholder - would be replaced with actual ML inference code
-function runFraudDetection(transactionData) {
-  console.log("Running fraud detection on:", transactionData);
-  
-  // Placeholder logic to simulate ML model
-  // In a real implementation, this would call an ML model API or run inference logic
-  const ticketId = transactionData.ticketId || "";
-  const amount = transactionData.amount || 0;
-  const station = transactionData.station || "";
-  
-  // Simplified fraud scoring logic - would be replaced with actual ML model
-  let fraudScore = 0.1; // Base score
-  
-  // Add some randomness but ensure consistent results for the same ticket
-  const ticketSeed = ticketId.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const pseudoRandom = (Math.sin(ticketSeed) + 1) / 2;
-  
-  // Fake detection rules for the demo
-  if (amount > 7) fraudScore += 0.2;
-  if (station.includes("Central") || station.includes("East")) fraudScore += 0.15;
-  if (ticketId.endsWith("7") || ticketId.endsWith("1")) fraudScore += 0.4;
-  
-  // Add controlled randomness
-  fraudScore += pseudoRandom * 0.3;
-  
-  // Ensure score is between 0 and 1
-  fraudScore = Math.min(0.99, Math.max(0.01, fraudScore));
-  
-  // Round to 3 decimal places
-  fraudScore = Math.round(fraudScore * 1000) / 1000;
-  
-  return {
-    fraudScore: fraudScore,
-    status: fraudScore > 0.7 ? "flagged" : (fraudScore > 0.4 ? "pending" : "cleared")
-  };
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders, status: 204 });
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
-  
+
   try {
-    // Get request body
-    const body = await req.json();
-    const { ticketId, timestamp, station, amount } = body;
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    const { ticketId, timestamp, station, amount } = await req.json()
     
-    if (!ticketId || !station || amount === undefined) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
-        { 
-          status: 400, 
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        }
-      );
-    }
-    
-    // Run fraud detection model
-    const fraudResult = runFraudDetection({
+    console.log("Running fraud detection on:", {
       ticketId,
-      timestamp: timestamp || new Date().toISOString(),
+      timestamp,
       station,
       amount
     });
+
+    // Simple fraud detection algorithm
+    let fraudScore = 0;
     
-    console.log("Fraud detection result:", fraudResult);
+    // Base risk factors
+    if (amount > 100) fraudScore += 0.3;
+    if (amount < 1) fraudScore += 0.4;
     
-    // Create response with fraud detection results
-    const response = {
+    // Station-based risk
+    if (station === 'East Station' || station === 'Central Station') {
+      fraudScore += 0.2;
+    }
+    
+    // Time-based risk (if it's very late or very early)
+    const hour = new Date(timestamp || Date.now()).getHours();
+    if (hour < 5 || hour > 23) {
+      fraudScore += 0.15;
+    }
+    
+    // Add some randomness to simulate ML model
+    fraudScore += Math.random() * 0.3;
+    
+    // Cap at 1.0
+    fraudScore = Math.min(fraudScore, 1.0);
+    
+    // Determine status based on fraud score
+    let status = 'pending';
+    if (fraudScore > 0.7) {
+      status = 'flagged';
+    } else if (fraudScore < 0.3) {
+      status = 'cleared';
+    }
+
+    const result = {
       ticketId,
       timestamp: timestamp || new Date().toISOString(),
       station,
-      amount,
-      fraudScore: fraudResult.fraudScore,
-      status: fraudResult.status,
+      amount: Number(amount),
+      fraudScore: Number(fraudScore.toFixed(3)),
+      status,
       processedAt: new Date().toISOString()
     };
-    
-    // Create Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-    
-    // Store the transaction with fraud analysis results
-    const { data, error } = await supabaseClient
+
+    console.log("Fraud detection result:", { fraudScore: result.fraudScore, status: result.status });
+
+    // Store the transaction in the database
+    const { data: insertData, error: insertError } = await supabase
       .from('ticket_transactions')
-      .insert([{
-        ticket_id: ticketId,
-        timestamp: timestamp || new Date().toISOString(),
-        station,
-        amount,
-        fraud_score: fraudResult.fraudScore,
-        status: fraudResult.status
-      }]);
-      
-    if (error) {
-      console.error("Error storing transaction:", error);
+      .insert({
+        ticket_id: result.ticketId,
+        timestamp: result.timestamp,
+        station: result.station,
+        amount: result.amount,
+        fraud_score: result.fraudScore,
+        status: result.status
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Error inserting transaction:", insertError);
+      throw insertError;
     }
-    
-    // Return the result to the client
-    return new Response(
-      JSON.stringify(response),
-      { 
-        status: 200, 
-        headers: { "Content-Type": "application/json", ...corsHeaders } 
-      }
-    );
+
+    console.log("Transaction stored successfully:", insertData);
+
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+
   } catch (error) {
-    console.error("Error processing request:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error", details: error.message }),
-      { 
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      }
-    );
+    console.error("Error in fraud detection:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
-});
+})
