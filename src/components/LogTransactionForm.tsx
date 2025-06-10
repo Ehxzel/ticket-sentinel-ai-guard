@@ -9,14 +9,13 @@ import { Loader2, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { fraudDetectionService } from '@/services/fraudDetectionService';
 
-// Station options
+// Station options - using the same stations as ManualFraudChecker for consistency
 const stations = [
-  'Central Station',
-  'North Station',
-  'South Gate',
-  'East Station',
-  'West Terminal',
-  'Airport Terminal',
+  "London Euston",
+  "Liverpool Lime Street", 
+  "Manchester Piccadilly",
+  "Birmingham New Street",
+  "York"
 ];
 
 const LogTransactionForm = ({ onTransactionAdded }: { onTransactionAdded?: () => void }) => {
@@ -52,20 +51,29 @@ const LogTransactionForm = ({ onTransactionAdded }: { onTransactionAdded?: () =>
         return;
       }
       
+      console.log("Logging transaction with data:", {
+        ticketId,
+        timestamp: new Date().toISOString(),
+        station: selectedStation,
+        amount: amountValue
+      });
+      
       const response = await fraudDetectionService.analyzeTransaction({
         ticketId,
+        timestamp: new Date().toISOString(),
         station: selectedStation,
         amount: amountValue
       });
       
       if (response) {
+        console.log("Transaction logged successfully:", response);
         toast({
           title: "Transaction Logged",
-          description: `Ticket ${ticketId} has been successfully logged.`,
+          description: `Ticket ${ticketId} has been successfully logged and analyzed.`,
         });
         resetForm();
         
-        // Make sure we call the onTransactionAdded callback to trigger a refresh
+        // Call the refresh callback to update the transaction table
         console.log("Transaction added successfully, calling refresh callback");
         if (onTransactionAdded) {
           onTransactionAdded();
@@ -139,7 +147,7 @@ const LogTransactionForm = ({ onTransactionAdded }: { onTransactionAdded?: () =>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="log-amount">Amount ($)</Label>
+              <Label htmlFor="log-amount">Amount (£)</Label>
               <Input
                 id="log-amount"
                 type="number"
