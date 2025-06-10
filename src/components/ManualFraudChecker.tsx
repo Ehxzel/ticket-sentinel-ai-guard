@@ -1,9 +1,10 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Search, AlertTriangle } from 'lucide-react';
 import { fraudDetectionService } from '@/services/fraudDetectionService';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +22,32 @@ const ManualFraudChecker = () => {
   const [isChecking, setIsChecking] = useState(false);
   const [response, setResponse] = useState<any>(null);
   const { toast } = useToast();
+
+  const stations = [
+    "London Euston",
+    "Liverpool Lime Street", 
+    "Manchester Piccadilly",
+    "Birmingham New Street",
+    "York"
+  ];
+
+  // Auto-generate IDs on component mount
+  useEffect(() => {
+    const generateIds = () => {
+      const ticketId = `TX-${Math.floor(Math.random() * 100000)}`;
+      const userId = `USER-${Math.floor(Math.random() * 1000)}`;
+      const deviceId = `DEV-${Math.floor(Math.random() * 10000)}`;
+      
+      setFormData(prev => ({
+        ...prev,
+        ticket_id: ticketId,
+        user_id: userId,
+        device_id: deviceId
+      }));
+    };
+
+    generateIds();
+  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -99,14 +126,19 @@ const ManualFraudChecker = () => {
   };
 
   const resetForm = () => {
+    // Generate new IDs on reset
+    const ticketId = `TX-${Math.floor(Math.random() * 100000)}`;
+    const userId = `USER-${Math.floor(Math.random() * 1000)}`;
+    const deviceId = `DEV-${Math.floor(Math.random() * 10000)}`;
+    
     setFormData({
-      ticket_id: '',
-      user_id: '',
+      ticket_id: ticketId,
+      user_id: userId,
       timestamp: new Date().toISOString().slice(0, 16),
       origin_station: '',
       destination_station: '',
       amount: '',
-      device_id: ''
+      device_id: deviceId
     });
     setResponse(null);
   };
@@ -114,9 +146,9 @@ const ManualFraudChecker = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Manual Ticket Fraud Checker</CardTitle>
+        <CardTitle>Ticket Sentinel AI Guard</CardTitle>
         <CardDescription>
-          Input ticket info manually to test it against the AI fraud model
+          Real-time fraud detection on train tickets using AI.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -128,9 +160,9 @@ const ManualFraudChecker = () => {
                 <Label htmlFor="ticket_id">Ticket ID</Label>
                 <Input
                   id="ticket_id"
-                  placeholder="Enter ticket ID"
                   value={formData.ticket_id}
-                  onChange={(e) => handleInputChange('ticket_id', e.target.value)}
+                  readOnly
+                  className="bg-gray-100"
                 />
               </div>
 
@@ -138,9 +170,9 @@ const ManualFraudChecker = () => {
                 <Label htmlFor="user_id">User ID</Label>
                 <Input
                   id="user_id"
-                  placeholder="Enter user ID"
                   value={formData.user_id}
-                  onChange={(e) => handleInputChange('user_id', e.target.value)}
+                  readOnly
+                  className="bg-gray-100"
                 />
               </div>
 
@@ -156,22 +188,34 @@ const ManualFraudChecker = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="origin_station">Origin Station</Label>
-                <Input
-                  id="origin_station"
-                  placeholder="Enter origin station"
-                  value={formData.origin_station}
-                  onChange={(e) => handleInputChange('origin_station', e.target.value)}
-                />
+                <Select value={formData.origin_station} onValueChange={(value) => handleInputChange('origin_station', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select origin station" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stations.map((station) => (
+                      <SelectItem key={station} value={station}>
+                        {station}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="destination_station">Destination Station</Label>
-                <Input
-                  id="destination_station"
-                  placeholder="Enter destination station"
-                  value={formData.destination_station}
-                  onChange={(e) => handleInputChange('destination_station', e.target.value)}
-                />
+                <Select value={formData.destination_station} onValueChange={(value) => handleInputChange('destination_station', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select destination station" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stations.map((station) => (
+                      <SelectItem key={station} value={station}>
+                        {station}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -190,9 +234,9 @@ const ManualFraudChecker = () => {
                 <Label htmlFor="device_id">Device ID</Label>
                 <Input
                   id="device_id"
-                  placeholder="Enter device ID"
                   value={formData.device_id}
-                  onChange={(e) => handleInputChange('device_id', e.target.value)}
+                  readOnly
+                  className="bg-gray-100"
                 />
               </div>
 
@@ -209,7 +253,7 @@ const ManualFraudChecker = () => {
                   ) : (
                     <>
                       <Search className="mr-2 h-4 w-4" />
-                      Check for Fraud
+                      Check Fraud
                     </>
                   )}
                 </Button>
@@ -265,7 +309,7 @@ const ManualFraudChecker = () => {
             ) : (
               <div className="bg-gray-100 rounded-lg p-4 border">
                 <p className="text-gray-500 text-center">
-                  // Prediction will show here
+                  // Result will appear here
                 </p>
               </div>
             )}
