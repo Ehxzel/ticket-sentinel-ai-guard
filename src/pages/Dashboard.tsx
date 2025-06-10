@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, Users, TrendingUp, Clock } from 'lucide-react';
 import LogTransactionForm from '@/components/LogTransactionForm';
 import AutoLogger from '@/components/AutoLogger';
-import ManualFraudChecker from '@/components/ManualFraudChecker';
 
 const DashboardPage = () => {
   const { user, isLoading, isAdmin } = useAuth();
@@ -159,9 +158,6 @@ const DashboardPage = () => {
             <FraudAlerts />
           </div>
         </div>
-        
-        {/* Manual Fraud Checker */}
-        <ManualFraudChecker />
         
         {/* Data Logging Section */}
         <div className="grid gap-6 md:grid-cols-2">
